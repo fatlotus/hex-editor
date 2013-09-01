@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hex Editor</title>
+  <script type='text/javascript'>
+  window.addEventListener('load', function() {
+    var mostRecentMimeType = null;
+    
+    var body = document.getElementsByTagName('body')[0];
+    var textarea = document.getElementById('content');
+    var imageTag = document.getElementById('preview');
+    var notice = document.getElementById('notice');
+    
+    var updateImageFromText = function() {
+      imageTag.src = "data:" + mostRecentMimeType + "," +
+                     textarea.value.replace(/(^)|\W+/g, '%');
+    };
+    
+    var cancelDefault = function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    
+    var handleFiles = function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      var files = e.dataTransfer.files;
+      
+      if (files.length == 0) return;
+      if (textarea.disabled) return;
+      
+      textarea.disabled = true;
+      
+      mostRecentMimeType = files[0].type;
+      
+      var startBlob = files[0]; // no length checking!
+      var fileReader = new FileReader;
+      
+      fileReader.addEventListener('load', function() {
+        var chunks = [ ];
+        
+        for (var i = 0; i < fileReader.result.length; i++) {
+          var character = fileReader.result.charCodeAt(i).toString(16);
+          if (character.length == 1)
+            character = "0" + character;
+          
+          chunks.push(character);
+          
+          chunks.push((i % 16 == 7) ? "  " :
+                      (i % 16 == 15) ? "\n" : " ");
+        }
+        
+        textarea.value = chunks.join("");
+        textarea.disabled = false;
+        
+        body.setAttribute('class', 'done');
+        
+        updateImageFromText(textarea.value);
+      }, false);
+      
+      notice.innerText = 'Working...';
+      fileReader.readAsBinaryString(startBlob);
+    };
+    
+    var handleDelete = function(e) {
+      if (e.keyCode == 8) {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        var target = e.target;
+        var start = target.selectionStart;
+        
+        while ("\n\t ".indexOf(target.value.substring(start - 1, start)) != -1)
+          start--;
+        
+        target.value = target.value.substring(0, start - 1) +
+                       "0" +
+                       target.value.substring(start);
+        
+        target.selectionStart = target.selectionEnd = start - 1;
+        
+        updateImageFromText();
+      }
+    };
+    
+    var handleKeys = function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      var target = e.target;
+      var start = target.selectionStart;
+      var typed = String.fromCharCode(e.charCode).toLowerCase();
+      
+      if ('0123456789abcdef'.indexOf(typed) == -1)
+        return;
+      
+      while ("\t\n ".indexOf(target.value.substring(start, start + 1)) != -1)
+        start++;
+      
+      if (target.selectionStart == target.value.length) return;
+      
+      target.value = target.value.substring(0, start) +
+                     String.fromCharCode(e.charCode) +
+                     target.value.substring(start + 1);
+      
+      target.selectionStart = target.selectionEnd = start + 1;
+      
+      updateImageFromText();
+    };
+    
+    body.addEventListener("dragenter", cancelDefault, false);
+    body.addEventListener("dragover", cancelDefault, false);
+    body.addEventListener("drop", handleFiles, false);
+    
+    textarea.addEventListener("keypress", handleKeys, false);
+    textarea.addEventListener("keydown", handleDelete, false);
+  }, true);
+  </script>
+  <style type='text/css'>
+    body{position:absolute;top:0;right:0;bottom:0;left:0;}
+    body{font:13px Monaco,monospace;}
+    #content{width:55ex;}
+    #content{font:13px Monaco,monospace;}
+    #content{display:none;}
+    #content{position:absolute;top:0;left:0;bottom:0;padding:0.4em;}
+    #preview{position:absolute;top:0;left:58ex;bottom:0;}
+    #notice{position:absolute;top:40%;left:0;right:0;}
+    #notice{font:2em Helvetica,sans-serif;}
+    #notice{text-align:center;}
+    .done #content{display:inline-block;}
+    .done #notice{display:none;}
+  </style>
+</head>
+<body>
+  <textarea id="content"></textarea>
+  <img id="preview"/>
+  <div id="notice">Drop a file on this page to begin.</div>
+</body>
+</html>
